@@ -1,0 +1,128 @@
+---
+sidebar_position: 1
+title: Linux 部署
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Linux 部署
+
+本指南介绍如何在 Linux 服务器上完成依赖安装、项目配置与生产构建。
+
+## 环境要求
+
+| 依赖 | 要求 |
+| --- | --- |
+| Go | ≥ 1.26 |
+| pnpm | ≥ 8（推荐通过 `corepack enable` 启用） |
+| 数据库（二选一） | PostgreSQL ≥ 14 或 MySQL ≥ 8.0 |
+| Redis | ≥ 6（仅启用注册邮箱验证时需要） |
+| Chrome/Chromium | 用于导出 PDF 和 PNG |
+
+## 克隆项目
+
+```bash
+git clone https://github.com/mikulc/pudding-resume.git
+cd pudding-resume
+```
+
+## 准备数据库
+
+后端支持 PostgreSQL 和 MySQL，可通过 `backend/.env` 中的 `DB_DRIVER` 选择数据库类型。
+
+<Tabs groupId="linux-distribution">
+  <TabItem value="postgresql" label="PostgreSQL" default>
+
+```sql
+-- 在 PostgreSQL 中创建后端数据库
+CREATE DATABASE pudding_resume;
+```
+
+  </TabItem>
+
+  <TabItem value="mysql" label="MySQL">
+
+```sql
+-- 在 MySQL 8.0 中创建后端数据库
+CREATE DATABASE pudding_resume
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+  </TabItem>
+</Tabs>
+
+
+## 配置后端
+
+```bash
+# 安装 Go 依赖
+go mod tidy
+
+# 复制环境变量配置文件
+cp backend/.env.example backend/.env
+```
+
+编辑 `backend/.env`，填写数据库与 JWT 配置。启用注册邮箱验证时，还需填写 Redis 和 SMTP 配置。
+:::tip
+如果不需要注册邮箱验证，可跳过 Redis 的安装与配置，并将 `REGISTRATION_EMAIL_CODE_ENABLED` 保持为 `false`。
+:::
+
+## 安装 Chromium
+
+<Tabs groupId="linux-distribution">
+  <TabItem value="ubuntu" label="Ubuntu" default>
+
+```bash
+# 安装 Chromium
+sudo apt update
+sudo apt install -y chromium-browser
+
+# 验证安装
+chromium-browser --version || chromium --version
+```
+
+  </TabItem>
+
+  <TabItem value="centos" label="CentOS">
+
+```bash
+# 安装 Chromium
+sudo dnf install -y epel-release
+sudo dnf install -y chromium
+
+# 验证安装
+chromium --version
+```
+
+  </TabItem>
+</Tabs>
+
+:::tip
+安装过程可能需要较长时间，请耐心等待。若后端无法自动找到浏览器，请在 `backend/.env` 中通过 `CHROMIUM_PATH` 指定其可执行文件路径。
+:::
+
+## 打包构建
+
+以下命令均在项目根目录下执行。
+
+### 前端构建
+
+```bash
+cd frontend
+pnpm frontend install
+pnpm frontend build
+```
+
+构建产物位于 `frontend/dist/`，可直接由 Nginx 托管。
+
+### 后端编译
+
+```bash
+# 编译为单可执行文件
+cd backend
+go build -o pudding-resume-backend
+```
+
+编译完成后，可执行文件位于 `backend/pudding-resume-backend`。

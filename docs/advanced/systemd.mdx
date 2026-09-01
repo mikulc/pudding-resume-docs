@@ -1,0 +1,78 @@
+---
+sidebar_position: 1
+title: systemd 服务
+---
+
+# 使用 systemd 运行后端服务
+
+将后端注册为 systemd 服务后，可以统一管理进程，并在服务异常退出或服务器重启后自动恢复运行。
+
+以下示例假设项目部署在 `/opt/pudding-resume`，后端可执行文件位于 `/opt/pudding-resume/backend/pudding-resume-backend`。
+
+## 创建服务单元
+
+使用以下命令创建服务文件：
+
+```bash
+vim /etc/systemd/system/pudding-resume.service
+```
+
+写入以下内容：
+
+```ini
+[Unit]
+Description=Pudding Resume Backend
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pudding-resume
+Group=pudding-resume
+WorkingDirectory=/opt/pudding-resume/backend
+EnvironmentFile=/opt/pudding-resume/backend/.env
+ExecStart=/opt/pudding-resume/backend/pudding-resume-backend
+
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## 启动并验证服务
+
+```bash
+# 重新加载 systemd 配置
+sudo systemctl daemon-reload
+
+# 设置为开机启动并立即运行
+sudo systemctl enable --now pudding-resume
+
+# 查看当前状态
+sudo systemctl status pudding-resume --no-pager
+```
+
+:::tip
+服务正常启动后，可在服务器本机通过 `http://127.0.0.1:8080` 访问后端。如需调整监听端口，请修改 `.env` 中的 `SERVER_PORT`，然后重启服务。
+:::
+
+## 常用运维命令
+
+```bash
+# 实时查看日志
+sudo journalctl -u pudding-resume -f
+
+# 查看最近 100 条日志
+sudo journalctl -u pudding-resume -n 100 --no-pager
+
+# 重启服务
+sudo systemctl restart pudding-resume
+
+# 停止服务
+sudo systemctl stop pudding-resume
+```
+
+:::tip
+修改服务文件后，需要再次执行 `sudo systemctl daemon-reload`；仅修改 `.env` 或替换后端可执行文件时，重启服务即可使变更生效。
+:::
